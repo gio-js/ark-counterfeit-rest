@@ -14,20 +14,28 @@ export class AppManufacturerController {
 
   @Post()
   async createManufacturer(@Body() model: AnticounterfeitRegisterManufacturerTransaction): Promise<RestResponse> {
-    // get an environment variable
-    const uri = this.configService.get<string>('ARK_HTTP_SERVER_URI');
-    const rootAddressPublicKey = this.configService.get<string>('ANTICOUNTERFEIT_ROOT_PUBLIC_KEY');
-    const rootPassphrase = this.configService.get<string>('ANTICOUNTERFEIT_ROOT_PASSPHRASE');
+    try {
+      // get an environment variable
+      const uri = this.configService.get<string>('ARK_HTTP_SERVER_URI');
+      const rootPassphrase = this.configService.get<string>('ANTICOUNTERFEIT_ROOT_PASSPHRASE');
 
-    // request to http ark.io service
-    const service = new TransactionService(uri);
-    const serviceResult = await service.sendManufacturerTransaction(rootAddressPublicKey, rootPassphrase,
-      model.ManufacturerAddressId, model.ProductPrefixId,
-      model.CompanyName, model.CompanyFiscalCode);
+      // request to http ark.io service
+      const service = new TransactionService(uri);
+      const serviceResult = await service.sendManufacturerTransaction(rootPassphrase,
+        model.ManufacturerAddressId, model.ProductPrefixId,
+        model.CompanyName, model.CompanyFiscalCode);
 
-    return {
-      Data: serviceResult,
-      IsSuccess: false
-    } as RestResponse;
+      return {
+        Data: serviceResult,
+        IsSuccess: true
+      } as RestResponse;
+    } catch (ex) {
+      
+      return {
+        Data: ex.response,
+        IsSuccess: false
+      } as RestResponse;
+
+    }
   }
 }
