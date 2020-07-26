@@ -1,9 +1,11 @@
-export class RestResponse {
+export class RestResponse<T> {
 
     public IsSuccess: boolean;
 
-    public Errors: string[];
+    public RestErrorResponse: any;
 
-    public Data: object;
+    public RestResponse: any;
+
+    public Data: T;
 
 }

@@ -1,7 +1,8 @@
 import { Connection } from '@arkecosystem/client'
 import { Identities, Managers, Transactions } from '@arkecosystem/crypto'
 import { RegisterManufacturerBuilder, RegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
-import { ITransactionData } from '@arkecosystem/crypto/dist/interfaces';
+import { BigNumber } from '@arkecosystem/crypto/dist/utils';
+import { generateMnemonic } from 'bip39';
 
 export class TransactionService {
 
@@ -22,6 +23,7 @@ export class TransactionService {
         Managers.configManager.setFromPreset(this.network);
         Managers.configManager.setHeight(await this.getLatestBlockHeight());
         Transactions.TransactionRegistry.registerTransactionType(RegisterManufacturerTransaction);
+        //Transactions.BuilderFactory.delegateRegistration().usernameAsset
     }
 
     /** Get a wallet */
@@ -38,49 +40,39 @@ export class TransactionService {
         return (parseInt(nonce, 10) + 1).toString()
     }
 
-    private async sendTransaction(transaction: ITransactionData): Promise<any> {
+    /** Broadcast transaction on ark net */
+    private async sendTransaction(transaction: any): Promise<any> {
         return await this.connection.api('transactions').create({ transactions: [transaction] });
     }
 
-    public async sendManufacturerTransaction(
-        passphrase: string, 
-        manufacturerAddressId: string, prefixId: string,
-        companyName: string, fiscalCode: string): Promise<any> {
+    /** Generates a random words list as passphrase */
+    public GenerateRandomPassphrase = (): string => {
+        return generateMnemonic();
+        //return getAccountDataFromPassphrase(passphrase);
+    };
 
-        const senderAddressId: string = Identities.Address.fromPassphrase(passphrase);
-        console.log(senderAddressId);
+    /** Creates and send a new manufacturer declaration transaction */
+    public async SendManufacturerTransaction(
+        rootPassphrase: string, 
+        manufacturerPassphrase: string, 
+        prefixId: string, companyName: string, fiscalCode: string): Promise<any> {
+
+        const senderAddressId: string = Identities.Address.fromPassphrase(rootPassphrase);
+        const manufacturerAddressId: string = Identities.Address.fromPassphrase(manufacturerPassphrase);
 
         const nonce = await this.getNextNonce(senderAddressId);
         const builder = new RegisterManufacturerBuilder();
-        const transaction = builder.nonce(nonce)
+        const transaction = builder
+            .nonce(nonce)
             .manufacturer(manufacturerAddressId, prefixId, companyName, fiscalCode)
             .vendorField(this.vendorField)
-            .sign(passphrase)
+            .recipientId(manufacturerAddressId)
+            .sign(rootPassphrase)
             .getStruct();
 
         console.log(JSON.stringify(transaction));
 
         return await this.sendTransaction(transaction);
-        // let transaction = {
-        //     "version": 2,
-        //     "network": 23,
-        //     "typeGroup": 1001,
-        //     "type": 100,
-        //     "nonce": null,
-        //     "senderPublicKey": senderPublicKey, //"03287bfebba4c7881a0509717e71b34b63f31e40021c321f89ae04f84be6d6ac37",
-        //     "fee": "100000000",
-        //     "amount": "0",
-        //     "asset": asset,
-        //     //"signature": "809dac6e3077d6ae2083b353b6020badc37195c286079d466bb1d6670ed4e9628a5b5d0a621801e2763aae5add41905036ed8d21609ed9ddde9f941bd066833c",
-        //     //"id": "b567325019edeef0ce5a1134af0b642a54ed2a8266a406e1a999f5d590eb5c3c"
-        // };
-
-
-
-
-        // transaction.nonce = this.getNextNonce(senderAddressId);
-
-
     }
 
 
