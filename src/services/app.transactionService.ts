@@ -55,7 +55,7 @@ export class TransactionService {
     public async SendManufacturerTransaction(
         rootPassphrase: string, 
         manufacturerPassphrase: string, 
-        prefixId: string, companyName: string, fiscalCode: string): Promise<any> {
+        prefixId: string, companyName: string, fiscalCode: string, registrationContract: string): Promise<any> {
 
         const senderAddressId: string = Identities.Address.fromPassphrase(rootPassphrase);
         const manufacturerAddressId: string = Identities.Address.fromPassphrase(manufacturerPassphrase);
@@ -64,7 +64,7 @@ export class TransactionService {
         const builder = new RegisterManufacturerBuilder();
         const transaction = builder
             .nonce(nonce)
-            .manufacturer(manufacturerAddressId, prefixId, companyName, fiscalCode)
+            .manufacturer(prefixId, companyName, fiscalCode, registrationContract)
             .vendorField(this.vendorField)
             .recipientId(manufacturerAddressId)
             .sign(rootPassphrase)

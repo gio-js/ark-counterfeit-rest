@@ -38,8 +38,15 @@ export class AppManufacturerController {
 
       const serviceResult = await this.service.SendManufacturerTransaction(
         this.rootPassphrase,
-        manufacturerAddressId, model.ProductPrefixId,
-        model.CompanyName, model.CompanyFiscalCode);
+        manufacturerPassphrase,
+        model.ProductPrefixId, model.CompanyName, model.CompanyFiscalCode, model.RegistrationContract);
+
+      if (serviceResult.body.errors) {
+        return {
+          RestErrorResponse: serviceResult,
+          IsSuccess: false
+        } as RestResponse<RegisterManufacturerResponse>;
+      }
 
       return {
         RestResponse: serviceResult,
