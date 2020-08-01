@@ -1,11 +1,10 @@
 import { TransactionService } from './services/app.transactionService';
-import { Controller, Post, HttpService, Param, Body } from '@nestjs/common';
+import { Controller, Post, HttpService, Param, Body, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { AnticounterfeitRegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
-import { RestResponse } from './model/restResponse';
 import { ConfigService } from '@nestjs/config';
-import { RegisterManufacturerResponse } from './model/registerManufacturerResponse';
 import { Identities } from '@arkecosystem/crypto';
+import { RegisterManufacturerResponse, RestResponse } from 'common/ark-counterfeit-common/src/rest/models';
 
 @Controller("api/manufacturer")
 export class AppManufacturerController {
@@ -68,4 +67,55 @@ export class AppManufacturerController {
 
     }
   }
+
+  @Get()
+  async registerdManufacturers(): Promise<RestResponse<RegisterManufacturerResponse>> {
+    try {
+
+      const serviceResult = await this.service.GetRegisteredManufacturers();
+
+      if (serviceResult.body.errors) {
+        return {
+          RestErrorResponse: serviceResult,
+          IsSuccess: false
+        } as RestResponse<RegisterManufacturerResponse>;
+      }
+
+      return {
+        //RestResponse: serviceResult,
+        IsSuccess: true,
+        Data: serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterManufacturerTransaction as RegisterManufacturerResponse)
+      } as RestResponse<RegisterManufacturerResponse>;
+
+    } catch (ex) {
+
+      return {
+        RestErrorResponse: ex.response,
+        IsSuccess: false
+      } as RestResponse<RegisterManufacturerResponse>;
+
+    }
+  }
+
+  @Get("nonce/:id")
+  async getNextNonce(@Param() params: any):
+    Promise<RestResponse<string>> {
+    try {
+      const serviceResult = await this.service.GetNextNonce(params.id);
+      
+      return {
+        IsSuccess: true,
+        Data: serviceResult
+      } as RestResponse<string>;
+
+    } catch (ex) {
+
+      return {
+        RestErrorResponse: ex.response,
+        IsSuccess: false
+      } as RestResponse<string>;
+
+    }
+  }
+
 }

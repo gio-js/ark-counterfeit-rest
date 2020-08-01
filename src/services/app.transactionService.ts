@@ -1,8 +1,9 @@
-import { Connection } from '@arkecosystem/client'
+import { Connection, SearchTransactionsApiBody, ApiQuery } from '@arkecosystem/client'
 import { Identities, Managers, Transactions } from '@arkecosystem/crypto'
 import { RegisterManufacturerBuilder, RegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
 import { BigNumber } from '@arkecosystem/crypto/dist/utils';
 import { generateMnemonic } from 'bip39';
+import { ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP, REGISTER_MANUFACTURER_TYPE } from 'common/ark-counterfeit-common/src/const';
 
 export class TransactionService {
 
@@ -14,6 +15,10 @@ export class TransactionService {
         this.connection = new Connection(arkApiUri);
         this.initCrypto();
     }
+
+    /** Delay function */
+    private delay = (duration: number): Promise<Number> =>
+        new Promise(resolve => setTimeout(resolve, duration));
 
     /**
      * Initialize `@arkecosystem/crypto` lib settings
@@ -42,6 +47,7 @@ export class TransactionService {
 
     /** Broadcast transaction on ark net */
     private async sendTransaction(transaction: any): Promise<any> {
+        console.log(JSON.stringify(transaction));
         return await this.connection.api('transactions').create({ transactions: [transaction] });
     }
 
@@ -53,8 +59,8 @@ export class TransactionService {
 
     /** Creates and send a new manufacturer declaration transaction */
     public async SendManufacturerTransaction(
-        rootPassphrase: string, 
-        manufacturerPassphrase: string, 
+        rootPassphrase: string,
+        manufacturerPassphrase: string,
         prefixId: string, companyName: string, fiscalCode: string, registrationContract: string): Promise<any> {
 
         const senderAddressId: string = Identities.Address.fromPassphrase(rootPassphrase);
@@ -70,10 +76,64 @@ export class TransactionService {
             .sign(rootPassphrase)
             .getStruct();
 
-        console.log(JSON.stringify(transaction));
-
         return await this.sendTransaction(transaction);
     }
 
+    /** Retrieves all the registerd manufacturers */
+    public async GetRegisteredManufacturers(): Promise<any> {
+        return await this.connection.api('transactions').search(
+            {
+                typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+                type: REGISTER_MANUFACTURER_TYPE
+            } as SearchTransactionsApiBody,
+            { page: 1, limit: 100 } as ApiQuery);
+    }
 
+    /** Returns the next nonce for a specific manufacturer */
+    public async GetNextNonce(manufacturerAddressId: string): Promise<any> {
+        return await this.getNextNonce(manufacturerAddressId);
+    }
+
+    /** Register a new generic wallet */
+    public async RegisterNewWallet(rootPassphrase: string, genericPassphrase: string, userName: string): Promise<any> {
+        const rootAddressId: string = Identities.Address.fromPassphrase(rootPassphrase);
+        const newAccountAddressId: string = Identities.Address.fromPassphrase(genericPassphrase);
+
+        const rootNonce = await this.getNextNonce(rootAddressId);
+        const transactionTransfer = Transactions.BuilderFactory
+            .transfer()
+            .nonce(rootNonce)
+            .vendorField(this.vendorField)
+            .amount('5000000000')
+            .recipientId(newAccountAddressId)
+            .sign(rootPassphrase)
+            .getStruct();
+
+        await this.sendTransaction(transactionTransfer);
+
+        // Wait for at least one block (+5 sec) to have balance saved
+        await this.delay(8000);
+
+        const nonce = await this.getNextNonce(newAccountAddressId);
+        const transactionDelegate = Transactions.BuilderFactory
+            .delegateRegistration()
+            .usernameAsset(userName)
+            .nonce(nonce)
+            .vendorField(this.vendorField)
+            .sign(genericPassphrase)
+            .getStruct();
+
+        return await this.sendTransaction(transactionDelegate);
+    }
+
+    /** Retrieves all the registerd manufacturers */
+    public async GetDelegateWalletByUsername(userName: string): Promise<any> {
+        return await this.connection.api('transactions').search(
+            {
+                typeGroup: 1,
+                type: 2, // delegate registration
+                asset: { delegate: { username: userName } }
+            } as SearchTransactionsApiBody,
+            { page: 1, limit: 2 } as ApiQuery);
+    }
 }
