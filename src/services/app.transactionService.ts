@@ -1,14 +1,23 @@
 import { Connection, SearchTransactionsApiBody, ApiQuery } from '@arkecosystem/client'
 import { Identities, Managers, Transactions } from '@arkecosystem/crypto'
-import { RegisterManufacturerBuilder, RegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
+import {
+    RegisterManufacturerBuilder,
+    RegisterManufacturerTransaction,
+    AnticounterfeitRegisterProductTransaction
+} from 'common/ark-counterfeit-common';
 import { BigNumber } from '@arkecosystem/crypto/dist/utils';
 import { generateMnemonic } from 'bip39';
-import { ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP, REGISTER_MANUFACTURER_TYPE } from 'common/ark-counterfeit-common/src/const';
+import {
+    ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+    REGISTER_PRODUCT_TYPE,
+    REGISTER_MANUFACTURER_TYPE, VENDOR_FIELD
+} from 'common/ark-counterfeit-common/src/const';
+import { RestTransactionContainer } from 'common/ark-counterfeit-common/src/rest/models';
 
 export class TransactionService {
 
     private readonly connection: Connection;
-    private readonly vendorField: string = "UniMi-AnticounterfeitProject";
+    private readonly vendorField: string = VENDOR_FIELD;
     private readonly network = 'testnet';
 
     constructor(arkApiUri: string) {
@@ -135,5 +144,24 @@ export class TransactionService {
                 asset: { delegate: { username: userName } }
             } as SearchTransactionsApiBody,
             { page: 1, limit: 2 } as ApiQuery);
+    }
+
+    /** Register a new product */
+    public async RegisterProduct(model: RestTransactionContainer<AnticounterfeitRegisterProductTransaction>) {
+        const transaction = Transactions.BuilderFactory
+            .transfer() // creates a generic transfer transaction
+            .nonce(model.Nonce)
+            .vendorField(this.vendorField)
+            .getStruct();
+
+
+        transaction.typeGroup = ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP;
+        transaction.type = REGISTER_PRODUCT_TYPE;
+        transaction.signature = model.Signature;
+        transaction.senderPublicKey = model.SenderPublicKey;
+        transaction.id = model.TransactionId;
+        transaction.asset = model.Asset;
+
+        return await this.sendTransaction(transaction);
     }
 }
