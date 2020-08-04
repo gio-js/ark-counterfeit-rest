@@ -3,10 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { AppManufacturerController } from './app.manufacturer.controller';
 import { AppService } from './app.service';
 import { AppAccountController } from './app.account.controller';
+import { AppProductsController } from './app.products.controller';
 
 @Module({
   imports: [ConfigModule.forRoot(), HttpModule],
-  controllers: [AppManufacturerController, AppAccountController],
+  controllers: [AppManufacturerController, AppAccountController, AppProductsController],
   providers: [AppService],
 })
 export class AppModule {}

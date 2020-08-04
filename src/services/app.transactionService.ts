@@ -3,7 +3,9 @@ import { Identities, Managers, Transactions } from '@arkecosystem/crypto'
 import {
     RegisterManufacturerBuilder,
     RegisterManufacturerTransaction,
-    AnticounterfeitRegisterProductTransaction
+    RegisterProductTransaction,
+    AnticounterfeitRegisterProductTransaction,
+    RegisterProductBuilder
 } from 'common/ark-counterfeit-common';
 import { BigNumber } from '@arkecosystem/crypto/dist/utils';
 import { generateMnemonic } from 'bip39';
@@ -37,6 +39,7 @@ export class TransactionService {
         Managers.configManager.setFromPreset(this.network);
         Managers.configManager.setHeight(await this.getLatestBlockHeight());
         Transactions.TransactionRegistry.registerTransactionType(RegisterManufacturerTransaction);
+        Transactions.TransactionRegistry.registerTransactionType(RegisterProductTransaction);
         //Transactions.BuilderFactory.delegateRegistration().usernameAsset
     }
 
@@ -74,6 +77,21 @@ export class TransactionService {
 
         const senderAddressId: string = Identities.Address.fromPassphrase(rootPassphrase);
         const manufacturerAddressId: string = Identities.Address.fromPassphrase(manufacturerPassphrase);
+
+        const rootNonce = await this.getNextNonce(senderAddressId);
+        const transactionTransfer = Transactions.BuilderFactory
+            .transfer()
+            .nonce(rootNonce)
+            .vendorField(this.vendorField)
+            .amount('5000000000')
+            .recipientId(manufacturerAddressId)
+            .sign(rootPassphrase)
+            .getStruct();
+
+        await this.sendTransaction(transactionTransfer);
+
+        // Wait for at least one block (+5 sec) to have balance saved
+        await this.delay(8000);
 
         const nonce = await this.getNextNonce(senderAddressId);
         const builder = new RegisterManufacturerBuilder();
@@ -148,20 +166,28 @@ export class TransactionService {
 
     /** Register a new product */
     public async RegisterProduct(model: RestTransactionContainer<AnticounterfeitRegisterProductTransaction>) {
-        const transaction = Transactions.BuilderFactory
-            .transfer() // creates a generic transfer transaction
+        const builder = new RegisterProductBuilder();
+        const transaction = builder
             .nonce(model.Nonce)
-            .vendorField(this.vendorField)
-            .getStruct();
+            .product(model.Asset.ProductId, model.Asset.Description, model.Asset.ManufacturerAddressId, model.Asset.Metadata)
+            .vendorField(VENDOR_FIELD)
+            .recipientId(model.Asset.ManufacturerAddressId);
 
+        transaction.data.signature = model.Signature;
+        transaction.data.senderPublicKey = model.SenderPublicKey;
+        transaction.data.id = model.TransactionId;
 
-        transaction.typeGroup = ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP;
-        transaction.type = REGISTER_PRODUCT_TYPE;
-        transaction.signature = model.Signature;
-        transaction.senderPublicKey = model.SenderPublicKey;
-        transaction.id = model.TransactionId;
-        transaction.asset = model.Asset;
+        console.log(JSON.stringify(transaction.data));
+        return await this.sendTransaction(transaction.data);
+    }
 
-        return await this.sendTransaction(transaction);
+    /** Retrieves all the registerd products */
+    public async GetRegisteredProducts(): Promise<any> {
+        return await this.connection.api('transactions').search(
+            {
+                typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+                type: REGISTER_PRODUCT_TYPE
+            } as SearchTransactionsApiBody,
+            { page: 1, limit: 100 } as ApiQuery);
     }
 }

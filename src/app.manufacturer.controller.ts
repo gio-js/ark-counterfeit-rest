@@ -26,10 +26,11 @@ export class AppManufacturerController {
   }
 
   @Post()
-  async createManufacturer(@Body() model: AnticounterfeitRegisterManufacturerTransaction):
-    Promise<RestResponse<RegisterManufacturerResponse>> {
-    try {
+  async createManufacturer(@Body() model: AnticounterfeitRegisterManufacturerTransaction): Promise<RestResponse<RegisterManufacturerResponse>> {
+    const result = { IsSuccess: true } as RestResponse<RegisterManufacturerResponse>;
 
+    try {
+      // genera nuova passphrase
       const manufacturerPassphrase: string = this.service.GenerateRandomPassphrase();
       const manufacturerAddressId: string = Identities.Address.fromPassphrase(manufacturerPassphrase);
       const manufacturerPublicKey: string = Identities.PublicKey.fromPassphrase(manufacturerPassphrase);
@@ -41,81 +42,56 @@ export class AppManufacturerController {
         model.ProductPrefixId, model.CompanyName, model.CompanyFiscalCode, model.RegistrationContract);
 
       if (serviceResult.body.errors) {
-        return {
-          RestErrorResponse: serviceResult,
-          IsSuccess: false
-        } as RestResponse<RegisterManufacturerResponse>;
-      }
-
-      return {
-        RestResponse: serviceResult,
-        IsSuccess: true,
-        Data: {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      } else {
+        result.Data = {
           ManufacturerAddressId: manufacturerAddressId,
           ManufacturerPublicKey: manufacturerPublicKey,
           ManufacturerPrivateKey: manufacturerPrivateKey,
           ManufacturerPassphrase: manufacturerPassphrase
-        }
-      } as RestResponse<RegisterManufacturerResponse>;
+        };
+      }
+
 
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<RegisterManufacturerResponse>;
-
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
     }
+
+    return result;
   }
 
   @Get()
   async registerdManufacturers(): Promise<RestResponse<RegisterManufacturerResponse>> {
+    const result = { IsSuccess: true } as RestResponse<RegisterManufacturerResponse>
     try {
-
       const serviceResult = await this.service.GetRegisteredManufacturers();
 
       if (serviceResult.body.errors) {
-        return {
-          RestErrorResponse: serviceResult,
-          IsSuccess: false
-        } as RestResponse<RegisterManufacturerResponse>;
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false;
+      } else {
+        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterManufacturerTransaction as RegisterManufacturerResponse);
       }
-
-      return {
-        //RestResponse: serviceResult,
-        IsSuccess: true,
-        Data: serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterManufacturerTransaction as RegisterManufacturerResponse)
-      } as RestResponse<RegisterManufacturerResponse>;
-
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<RegisterManufacturerResponse>;
-
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
     }
+    return result;
   }
 
   @Get("nonce/:id")
-  async getNextNonce(@Param() params: any):
-    Promise<RestResponse<string>> {
+  async getNextNonce(@Param() params: any): Promise<RestResponse<string>> {
+    const result = { IsSuccess: true } as RestResponse<string>
+
     try {
-      const serviceResult = await this.service.GetNextNonce(params.id);
-      
-      return {
-        IsSuccess: true,
-        Data: serviceResult
-      } as RestResponse<string>;
-
+      result.Data = await this.service.GetNextNonce(params.id);
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<string>;
-
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
     }
+    return result;
   }
 
 }

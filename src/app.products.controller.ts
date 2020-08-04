@@ -26,33 +26,50 @@ export class AppProductsController {
   }
 
   @Post()
-  async registerProduct(@Body() model: RestTransactionContainer<AnticounterfeitRegisterProductTransaction>):
-    Promise<RestResponse<any>> {
+  async registerProduct(@Body() model: RestTransactionContainer<AnticounterfeitRegisterProductTransaction>): Promise<RestResponse<any>> {
+    const result = { IsSuccess: true } as RestResponse<any>;
     try {
 
       console.log(JSON.stringify(model));
       const serviceResult = await this.service.RegisterProduct(model);
 
+      console.log(JSON.stringify(serviceResult));
+
       if (serviceResult.body.errors) {
-        return {
-          RestErrorResponse: serviceResult,
-          IsSuccess: false
-        } as RestResponse<RegisterAccountResponse>;
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
       }
 
-      return {
-        IsSuccess: true,
-        Data: null
-      } as RestResponse<RegisterAccountResponse>;
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
+  @Get()
+  async registeredProducts(): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
+    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction>;
+    try {
+
+      const serviceResult = await this.service.GetRegisteredProducts();
+      console.log(JSON.stringify(serviceResult));
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      } else {
+        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+      }
 
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<RegisterAccountResponse>;
-
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
     }
+
+    return result;
   }
 
 }
