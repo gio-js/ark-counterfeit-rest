@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { AnticounterfeitRegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
 import { ConfigService } from '@nestjs/config';
 import { Identities } from '@arkecosystem/crypto';
-import { RestResponse, RegisterAccountResponse } from 'common/ark-counterfeit-common/src/rest/models';
+import { RestResponse, RegisterAccountResponse, LoginAccountRequest } from 'common/ark-counterfeit-common/src/rest/models';
 
 @Controller("api/account")
 export class AppAccountController {
@@ -27,69 +27,61 @@ export class AppAccountController {
 
   @Post()
   async createAccount(@Body() model: any): Promise<RestResponse<RegisterAccountResponse>> {
+    const result = { IsSuccess: true } as RestResponse<RegisterAccountResponse>;
     try {
-
       console.log(model.Username)
       const accountNewPassphrase: string = this.service.GenerateRandomPassphrase();
-
       const serviceResult = await this.service.RegisterNewWallet(this.rootPassphrase, accountNewPassphrase, model.Username);
 
       if (serviceResult.body.errors) {
-        return {
-          RestErrorResponse: serviceResult,
-          IsSuccess: false
-        } as RestResponse<RegisterAccountResponse>;
-      }
-
-      return {
-        //RestResponse: serviceResult,
-        IsSuccess: true,
-        Data: {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false;
+      } else {
+        result.Data = {
           Username: model.Username,
           Passphrase: accountNewPassphrase
-        }
-      } as RestResponse<RegisterAccountResponse>;
-
+        };
+      }
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<RegisterAccountResponse>;
-
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
     }
+    return result;
   }
 
   @Get(":Username/exists")
   async existsAccount(@Param() model: any): Promise<RestResponse<boolean>> {
+    const result = { IsSuccess: true } as RestResponse<boolean>;
     try {
-
       console.log(model.Username)
       const accountNewPassphrase: string = this.service.GenerateRandomPassphrase();
 
       const serviceResult = await this.service.GetDelegateWalletByUsername(model.Username);
 
       if (serviceResult.body.errors) {
-        return {
-          RestErrorResponse: serviceResult,
-          IsSuccess: false
-        } as RestResponse<boolean>;
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false;
+      } else {
+        result.Data = (serviceResult.body.data.length === 1);
       }
 
-      return {
-        //RestResponse: serviceResult,
-        IsSuccess: true,
-        Data: (serviceResult.body.data.length === 1)
-      } as RestResponse<boolean>;
-
     } catch (ex) {
-
-      return {
-        RestErrorResponse: ex.response,
-        IsSuccess: false
-      } as RestResponse<boolean>;
-
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
     }
+    return result;
+  }
+
+  @Post("login")
+  async login(@Body() model: LoginAccountRequest): Promise<RestResponse<boolean>> {
+    const result = { IsSuccess: true } as RestResponse<boolean>;
+    try {
+      result.Data = await this.service.LoginAccount(model.Username, model.Passphrase);
+    } catch (ex) {
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false;
+    }
+    return result;
   }
 
 }

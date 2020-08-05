@@ -190,4 +190,11 @@ export class TransactionService {
             } as SearchTransactionsApiBody,
             { page: 1, limit: 100 } as ApiQuery);
     }
+
+    /** Checks the account informations (the delegate must exist and must have the specified username) */
+    public async LoginAccount(username: string, passphrase: string) : Promise<boolean> {
+        const rootAddressId: string = Identities.Address.fromPassphrase(passphrase);
+        const delegateResult = await this.connection.api('delegates').get(rootAddressId);
+        return (delegateResult.body.data.username === username);
+    }
 }
