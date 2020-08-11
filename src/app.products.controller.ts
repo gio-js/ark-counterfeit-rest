@@ -50,11 +50,57 @@ export class AppProductsController {
   }
 
   @Get()
-  async registeredProducts(): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
+  async registeredProducts(): Promise<RestResponse<AnticounterfeitRegisterProductTransaction[]>> {
+    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction[]>;
+    try {
+
+      const serviceResult = await this.service.GetRegisteredProducts(null, null);
+      console.log(JSON.stringify(serviceResult));
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      } else {
+        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+      }
+
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
+  @Get(':productId')
+  async registeredProductsById(@Param() params: any): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
     const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction>;
     try {
 
-      const serviceResult = await this.service.GetRegisteredProducts();
+      const serviceResult = await this.service.GetRegisteredProducts(null, params.productId);
+      console.log(JSON.stringify(serviceResult));
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      } else {
+        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+      }
+
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
+  @Get('manufacturer/:manufacturerAddressId')
+  async registeredProductsByManufacturerAddressId(@Param() params: any): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
+    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction>;
+    try {
+
+      const serviceResult = await this.service.GetRegisteredProducts(params.manufacturerAddressId, null);
       console.log(JSON.stringify(serviceResult));
       if (serviceResult.body.errors) {
         result.RestErrorResponse = serviceResult;

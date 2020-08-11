@@ -76,7 +76,7 @@ export class AppAccountController {
   async login(@Body() model: LoginAccountRequest): Promise<RestResponse<boolean>> {
     const result = { IsSuccess: true } as RestResponse<boolean>;
     try {
-      result.Data = await this.service.LoginAccount(model.Username, model.Passphrase);
+      result.Data = await this.service.LoginAccount(model.Username, model.AddressId);
     } catch (ex) {
       result.RestErrorResponse = ex.response;
       result.IsSuccess = false;

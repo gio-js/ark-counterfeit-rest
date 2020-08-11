@@ -4,7 +4,10 @@ import { AppService } from './app.service';
 import { AnticounterfeitRegisterManufacturerTransaction } from 'common/ark-counterfeit-common';
 import { ConfigService } from '@nestjs/config';
 import { Identities } from '@arkecosystem/crypto';
-import { RegisterManufacturerResponse, RestResponse } from 'common/ark-counterfeit-common/src/rest/models';
+import {
+  RegisterManufacturerResponse, RestResponse,
+  ManufacturerResponse
+} from 'common/ark-counterfeit-common/src/rest/models';
 
 @Controller("api/manufacturer")
 export class AppManufacturerController {
@@ -55,7 +58,7 @@ export class AppManufacturerController {
 
 
     } catch (ex) {
-      result.RestErrorResponse = ex.response;
+      result.RestErrorResponse = (ex.response || ex.toString());
       result.IsSuccess = false;
     }
 
@@ -63,8 +66,8 @@ export class AppManufacturerController {
   }
 
   @Get()
-  async registerdManufacturers(): Promise<RestResponse<RegisterManufacturerResponse>> {
-    const result = { IsSuccess: true } as RestResponse<RegisterManufacturerResponse>
+  async registeredManufacturers(): Promise<RestResponse<ManufacturerResponse[]>> {
+    const result = { IsSuccess: true } as RestResponse<ManufacturerResponse[]>
     try {
       const serviceResult = await this.service.GetRegisteredManufacturers();
 
@@ -72,7 +75,16 @@ export class AppManufacturerController {
         result.RestErrorResponse = serviceResult;
         result.IsSuccess = false;
       } else {
-        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterManufacturerTransaction as RegisterManufacturerResponse);
+        result.Data = serviceResult.body.data.map(x => {
+          const transactionAsset = x.asset.AnticounterfeitRegisterManufacturerTransaction;
+          return {
+            AddressId: x.recipient,
+            ProductPrefixId: transactionAsset.ProductPrefixId,
+            CompanyName: transactionAsset.CompanyName,
+            CompanyFiscalCode: transactionAsset.CompanyFiscalCode,
+            RegistrationContract: transactionAsset.RegistrationContract
+          };
+        });
       }
     } catch (ex) {
       result.RestErrorResponse = ex.response;

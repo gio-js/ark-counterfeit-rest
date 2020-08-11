@@ -54,7 +54,7 @@ export class TransactionService {
     /** Get a wallet next transaction nonce */
     private getNextNonce = async (walletAddress: string) => {
         const nonce = (await this.getWallet(walletAddress)).nonce;
-        return (parseInt(nonce, 10) + 1).toString()
+        return (parseInt(nonce, 10) + 1)
     }
 
     /** Broadcast transaction on ark net */
@@ -81,22 +81,24 @@ export class TransactionService {
         const rootNonce = await this.getNextNonce(senderAddressId);
         const transactionTransfer = Transactions.BuilderFactory
             .transfer()
-            .nonce(rootNonce)
+            .nonce(rootNonce.toString())
             .vendorField(this.vendorField)
             .amount('5000000000')
             .recipientId(manufacturerAddressId)
             .sign(rootPassphrase)
             .getStruct();
 
-        await this.sendTransaction(transactionTransfer);
+        const transferResult = await this.sendTransaction(transactionTransfer);
+        if (transferResult.body.errors) {
+            return transferResult;
+        }
 
         // Wait for at least one block (+5 sec) to have balance saved
         await this.delay(8000);
 
-        const nonce = await this.getNextNonce(senderAddressId);
         const builder = new RegisterManufacturerBuilder();
         const transaction = builder
-            .nonce(nonce)
+            .nonce((rootNonce + 1).toString())
             .manufacturer(prefixId, companyName, fiscalCode, registrationContract)
             .vendorField(this.vendorField)
             .recipientId(manufacturerAddressId)
@@ -129,23 +131,25 @@ export class TransactionService {
         const rootNonce = await this.getNextNonce(rootAddressId);
         const transactionTransfer = Transactions.BuilderFactory
             .transfer()
-            .nonce(rootNonce)
+            .nonce(rootNonce.toString())
             .vendorField(this.vendorField)
             .amount('5000000000')
             .recipientId(newAccountAddressId)
             .sign(rootPassphrase)
             .getStruct();
 
-        await this.sendTransaction(transactionTransfer);
+        const transferResult = await this.sendTransaction(transactionTransfer);
+        if (transferResult.body.errors) {
+            return transferResult;
+        }
 
         // Wait for at least one block (+5 sec) to have balance saved
         await this.delay(8000);
 
-        const nonce = await this.getNextNonce(newAccountAddressId);
         const transactionDelegate = Transactions.BuilderFactory
             .delegateRegistration()
             .usernameAsset(userName)
-            .nonce(nonce)
+            .nonce((rootNonce + 1).toString())
             .vendorField(this.vendorField)
             .sign(genericPassphrase)
             .getStruct();
@@ -182,19 +186,37 @@ export class TransactionService {
     }
 
     /** Retrieves all the registerd products */
-    public async GetRegisteredProducts(): Promise<any> {
-        return await this.connection.api('transactions').search(
-            {
-                typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
-                type: REGISTER_PRODUCT_TYPE
-            } as SearchTransactionsApiBody,
+    public async GetRegisteredProducts(manufacturerAddressId: string, productId: string): Promise<any> {
+        const filter: SearchTransactionsApiBody = {
+            typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+            type: REGISTER_PRODUCT_TYPE
+        };
+
+        if (productId) {
+            filter.asset = { AnticounterfeitRegisterProductTransaction: { ProductId: productId } };
+        }
+
+        if (manufacturerAddressId) {
+            filter.recipientId = manufacturerAddressId;
+        }
+
+        return await this.connection.api('transactions').search(filter,
             { page: 1, limit: 100 } as ApiQuery);
     }
 
     /** Checks the account informations (the delegate must exist and must have the specified username) */
-    public async LoginAccount(username: string, passphrase: string) : Promise<boolean> {
-        const rootAddressId: string = Identities.Address.fromPassphrase(passphrase);
-        const delegateResult = await this.connection.api('delegates').get(rootAddressId);
+    public async LoginAccount(username: string, addressId: string): Promise<boolean> {
+        const delegateResult = await this.connection.api('delegates').get(addressId);
         return (delegateResult.body.data.username === username);
+    }
+
+    /** Retrieve current blockchain height */
+    public async GetBlockchainHeight(): Promise<any> {
+        const result = await this.connection.get('blockchain');
+        if (result.body.errors) {
+            return result;
+        }
+
+        return result.body.data.block.height;
     }
 }
