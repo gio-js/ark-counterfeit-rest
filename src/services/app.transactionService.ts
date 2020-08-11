@@ -146,10 +146,11 @@ export class TransactionService {
         // Wait for at least one block (+5 sec) to have balance saved
         await this.delay(8000);
 
+        const delegateNonce = await this.getNextNonce(newAccountAddressId);
         const transactionDelegate = Transactions.BuilderFactory
             .delegateRegistration()
             .usernameAsset(userName)
-            .nonce((rootNonce + 1).toString())
+            .nonce(delegateNonce.toString())
             .vendorField(this.vendorField)
             .sign(genericPassphrase)
             .getStruct();
