@@ -136,7 +136,9 @@ export class AppProductsController {
         result.RestErrorResponse = serviceResult;
         result.IsSuccess = false
       } else {
-        result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+        result.Data = serviceResult.body.data
+              .map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction)
+              [0];
 
         const currentOwnerAddressId = await this.service.RetrieveProductOwner(params.productId);
         result.Data.CurrentOwnerAddressId = currentOwnerAddressId;

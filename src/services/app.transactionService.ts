@@ -263,7 +263,7 @@ export class TransactionService {
         };
 
 
-        const receiverResult = await this.connection.api('transactions').search(filterManufacturer,
+        const receiverResult = await this.connection.api('transactions').search(filterReceiver,
             { page: 1, limit: 100 } as ApiQuery);
         if (receiverResult.body.data &&
             receiverResult.body.data.length) {
