@@ -5,14 +5,18 @@ import {
     RegisterManufacturerTransaction,
     RegisterProductTransaction,
     AnticounterfeitRegisterProductTransaction,
-    RegisterProductBuilder
+    RegisterProductBuilder,
+    AnticounterfeitTransferProductTransaction,
+    TransferProductBuilder,
+    AnticounterfeitReceiveProductTransaction,
+    ReceiveProductBuilder
 } from 'common/ark-counterfeit-common';
 import { BigNumber } from '@arkecosystem/crypto/dist/utils';
 import { generateMnemonic } from 'bip39';
 import {
     ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
     REGISTER_PRODUCT_TYPE,
-    REGISTER_MANUFACTURER_TYPE, VENDOR_FIELD
+    REGISTER_MANUFACTURER_TYPE, VENDOR_FIELD, RECEIVE_PRODUCT_TYPE
 } from 'common/ark-counterfeit-common/src/const';
 import { RestTransactionContainer } from 'common/ark-counterfeit-common/src/rest/models';
 
@@ -109,12 +113,17 @@ export class TransactionService {
     }
 
     /** Retrieves all the registerd manufacturers */
-    public async GetRegisteredManufacturers(): Promise<any> {
+    public async GetRegisteredManufacturers(fiscalCode: string = ""): Promise<any> {
+        const filter = {
+            typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+            type: REGISTER_MANUFACTURER_TYPE
+        } as SearchTransactionsApiBody;
+
+        if (fiscalCode) {
+            filter.asset = { AnticounterfeitRegisterManufacturerTransaction: { CompanyFiscalCode: fiscalCode } };
+        }
         return await this.connection.api('transactions').search(
-            {
-                typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
-                type: REGISTER_MANUFACTURER_TYPE
-            } as SearchTransactionsApiBody,
+            filter,
             { page: 1, limit: 100 } as ApiQuery);
     }
 
@@ -186,6 +195,40 @@ export class TransactionService {
         return await this.sendTransaction(transaction.data);
     }
 
+    /** Create a new transfer product transaction */
+    public async TransferProduct(model: RestTransactionContainer<AnticounterfeitTransferProductTransaction>) {
+        const builder = new TransferProductBuilder();
+        const transaction = builder
+            .nonce(model.Nonce)
+            .product(model.Asset.ProductId, model.Asset.SenderAddressId, model.Asset.RecipientAddressId)
+            .vendorField(VENDOR_FIELD)
+            .recipientId(model.Asset.RecipientAddressId);
+
+        transaction.data.signature = model.Signature;
+        transaction.data.senderPublicKey = model.SenderPublicKey;
+        transaction.data.id = model.TransactionId;
+
+        console.log(JSON.stringify(transaction.data));
+        return await this.sendTransaction(transaction.data);
+    }
+
+    /** Create a new receive product transaction */
+    public async ReceiveProduct(model: RestTransactionContainer<AnticounterfeitReceiveProductTransaction>) {
+        const builder = new ReceiveProductBuilder();
+        const transaction = builder
+            .nonce(model.Nonce)
+            .product(model.Asset.ProductId, model.Asset.RecipientAddressId)
+            .vendorField(VENDOR_FIELD)
+            .recipientId(model.Asset.RecipientAddressId);
+
+        transaction.data.signature = model.Signature;
+        transaction.data.senderPublicKey = model.SenderPublicKey;
+        transaction.data.id = model.TransactionId;
+
+        console.log(JSON.stringify(transaction.data));
+        return await this.sendTransaction(transaction.data);
+    }
+
     /** Retrieves all the registerd products */
     public async GetRegisteredProducts(manufacturerAddressId: string, productId: string): Promise<any> {
         const filter: SearchTransactionsApiBody = {
@@ -205,10 +248,53 @@ export class TransactionService {
             { page: 1, limit: 100 } as ApiQuery);
     }
 
+    /** Retrieves all the registerd products */
+    public async RetrieveProductOwner(productId: string): Promise<any> {
+        const filterManufacturer: SearchTransactionsApiBody = {
+            typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+            type: REGISTER_PRODUCT_TYPE,
+            asset: { AnticounterfeitRegisterProductTransaction: { ProductId: productId } }
+        };
+
+        const filterReceiver: SearchTransactionsApiBody = {
+            typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+            type: RECEIVE_PRODUCT_TYPE,
+            asset: { AnticounterfeitReceiveProductTransaction: { ProductId: productId } }
+        };
+
+
+        const receiverResult = await this.connection.api('transactions').search(filterManufacturer,
+            { page: 1, limit: 100 } as ApiQuery);
+        if (receiverResult.body.data &&
+            receiverResult.body.data.length) {
+            return receiverResult.body.data[0].recipient;
+        }
+
+        const manufacturerResult = await this.connection.api('transactions').search(filterManufacturer,
+            { page: 1, limit: 100 } as ApiQuery);
+        if (manufacturerResult.body.data &&
+            manufacturerResult.body.data.length) {
+            return manufacturerResult.body.data[0].recipient;
+        }
+    }
+
     /** Checks the account informations (the delegate must exist and must have the specified username) */
     public async LoginAccount(username: string, addressId: string): Promise<boolean> {
-        const delegateResult = await this.connection.api('delegates').get(addressId);
-        return (delegateResult.body.data.username === username);
+        try {
+            const delegateResult = await this.connection.api('delegates').get(addressId);
+            if (delegateResult.body.data.username === username) {
+                return true;
+            }
+        } catch (ex) { }
+
+        const manufacturerResult = await this.GetRegisteredManufacturers(username);
+        if (manufacturerResult.body.data &&
+            manufacturerResult.body.data.length &&
+            manufacturerResult.body.data[0].recipient === addressId) {
+            return true;
+        }
+
+        return false;
     }
 
     /** Retrieve current blockchain height */

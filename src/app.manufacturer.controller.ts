@@ -25,7 +25,6 @@ export class AppManufacturerController {
 
     // request to http ark.io service
     this.service = new TransactionService(uri);
-
   }
 
   @Post()

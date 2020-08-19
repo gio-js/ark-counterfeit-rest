@@ -1,0 +1,3 @@
+[submodule "common/ark-counterfeit-common"]
+	path = common/ark-counterfeit-common
+	url = https://github.com/gio-js/ark-counterfeit-common.git

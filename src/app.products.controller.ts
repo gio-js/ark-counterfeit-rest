@@ -1,10 +1,10 @@
 import { TransactionService } from './services/app.transactionService';
 import { Controller, Post, HttpService, Param, Body, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { AnticounterfeitRegisterManufacturerTransaction, AnticounterfeitRegisterProductTransaction } from 'common/ark-counterfeit-common';
+import { AnticounterfeitRegisterManufacturerTransaction, AnticounterfeitRegisterProductTransaction, AnticounterfeitTransferProductTransaction, AnticounterfeitReceiveProductTransaction } from 'common/ark-counterfeit-common';
 import { ConfigService } from '@nestjs/config';
 import { Identities } from '@arkecosystem/crypto';
-import { RestResponse, RegisterAccountResponse, RestTransactionContainer } from 'common/ark-counterfeit-common/src/rest/models';
+import { RestResponse, RegisterAccountResponse, RestTransactionContainer, ProductResponse } from 'common/ark-counterfeit-common/src/rest/models';
 
 @Controller("api/products")
 export class AppProductsController {
@@ -49,9 +49,57 @@ export class AppProductsController {
     return result;
   }
 
+  @Post('transfer')
+  async transferProduct(@Body() model: RestTransactionContainer<AnticounterfeitTransferProductTransaction>): Promise<RestResponse<any>> {
+    const result = { IsSuccess: true } as RestResponse<any>;
+    try {
+
+      console.log(JSON.stringify(model));
+      const serviceResult = await this.service.TransferProduct(model);
+
+      console.log(JSON.stringify(serviceResult));
+
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      }
+
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
+  @Post('receive')
+  async receiveProduct(@Body() model: RestTransactionContainer<AnticounterfeitReceiveProductTransaction>): Promise<RestResponse<any>> {
+    const result = { IsSuccess: true } as RestResponse<any>;
+    try {
+
+      console.log(JSON.stringify(model));
+      const serviceResult = await this.service.ReceiveProduct(model);
+
+      console.log(JSON.stringify(serviceResult));
+
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      }
+
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
   @Get()
-  async registeredProducts(): Promise<RestResponse<AnticounterfeitRegisterProductTransaction[]>> {
-    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction[]>;
+  async registeredProducts(): Promise<RestResponse<ProductResponse[]>> {
+    const result = { IsSuccess: true } as RestResponse<ProductResponse[]>;
     try {
 
       const serviceResult = await this.service.GetRegisteredProducts(null, null);
@@ -61,6 +109,11 @@ export class AppProductsController {
         result.IsSuccess = false
       } else {
         result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+
+        for (let product of result.Data) {
+          const currentOwnerAddressId = await this.service.RetrieveProductOwner(product.ProductId);
+          product.CurrentOwnerAddressId = currentOwnerAddressId;
+        }
       }
 
     } catch (ex) {
@@ -73,8 +126,8 @@ export class AppProductsController {
   }
 
   @Get(':productId')
-  async registeredProductsById(@Param() params: any): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
-    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction>;
+  async registeredProductsById(@Param() params: any): Promise<RestResponse<ProductResponse>> {
+    const result = { IsSuccess: true } as RestResponse<ProductResponse>;
     try {
 
       const serviceResult = await this.service.GetRegisteredProducts(null, params.productId);
@@ -84,6 +137,9 @@ export class AppProductsController {
         result.IsSuccess = false
       } else {
         result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+
+        const currentOwnerAddressId = await this.service.RetrieveProductOwner(params.productId);
+        result.Data.CurrentOwnerAddressId = currentOwnerAddressId;
       }
 
     } catch (ex) {
@@ -96,8 +152,8 @@ export class AppProductsController {
   }
 
   @Get('manufacturer/:manufacturerAddressId')
-  async registeredProductsByManufacturerAddressId(@Param() params: any): Promise<RestResponse<AnticounterfeitRegisterProductTransaction>> {
-    const result = { IsSuccess: true } as RestResponse<AnticounterfeitRegisterProductTransaction>;
+  async registeredProductsByManufacturerAddressId(@Param() params: any): Promise<RestResponse<ProductResponse[]>> {
+    const result = { IsSuccess: true } as RestResponse<ProductResponse[]>;
     try {
 
       const serviceResult = await this.service.GetRegisteredProducts(params.manufacturerAddressId, null);
@@ -107,6 +163,11 @@ export class AppProductsController {
         result.IsSuccess = false
       } else {
         result.Data = serviceResult.body.data.map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction);
+
+        for (let product of result.Data) {
+          const currentOwnerAddressId = await this.service.RetrieveProductOwner(product.ProductId);
+          product.CurrentOwnerAddressId = currentOwnerAddressId;
+        }
       }
 
     } catch (ex) {
