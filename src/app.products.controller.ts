@@ -137,11 +137,38 @@ export class AppProductsController {
         result.IsSuccess = false
       } else {
         result.Data = serviceResult.body.data
-              .map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction)
-              [0];
+          .map(x => x.asset.AnticounterfeitRegisterProductTransaction as AnticounterfeitRegisterProductTransaction)
+        [0];
 
         const currentOwnerAddressId = await this.service.RetrieveProductOwner(params.productId);
         result.Data.CurrentOwnerAddressId = currentOwnerAddressId;
+      }
+
+    } catch (ex) {
+      console.error(ex);
+      result.RestErrorResponse = ex.response;
+      result.IsSuccess = false
+    }
+
+    return result;
+  }
+
+  @Get('owner/:addressId')
+  async productsByOwner(@Param() params: any): Promise<RestResponse<ProductResponse[]>> {
+    const result = { IsSuccess: true } as RestResponse<ProductResponse[]>;
+    try {
+
+      const serviceResult = await this.service.RetrieveProductsByOwner(params.addressId);
+      console.log(JSON.stringify(serviceResult));
+      if (serviceResult.body.errors) {
+        result.RestErrorResponse = serviceResult;
+        result.IsSuccess = false
+      } else {
+        result.Data = serviceResult.body.data.map(x => x as AnticounterfeitRegisterProductTransaction);
+
+        for (let product of result.Data) {
+          product.CurrentOwnerAddressId = params.addressId;
+        }
       }
 
     } catch (ex) {

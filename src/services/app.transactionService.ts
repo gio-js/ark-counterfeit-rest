@@ -278,6 +278,35 @@ export class TransactionService {
         }
     }
 
+    /** Retrieves all the registerd products on a specific owner */
+    public async RetrieveProductsByOwner(addressId: string): Promise<any> {
+        const filterReceiver: SearchTransactionsApiBody = {
+            typeGroup: ANTICOUNTERFEIT_TRANSACTIONS_TYPE_GROUP,
+            type: RECEIVE_PRODUCT_TYPE,
+            asset: { AnticounterfeitReceiveProductTransaction: { RecipientAddressId: addressId } }
+        };
+
+        const ownedElements = [];
+        const receiverResult = await this.connection.api('transactions').search(filterReceiver,
+            { page: 1, limit: 100 } as ApiQuery);
+        if (receiverResult.body.data &&
+            receiverResult.body.data.length) {
+            const receivedElements = receiverResult.body.data;
+
+            for (let receivedElement of receivedElements) {
+
+                let currentOwner = await this.RetrieveProductOwner(receivedElement.asset!.AnticounterfeitReceiveProductTransaction.ProductId);
+                if (currentOwner == addressId) {
+                    const registeredProduct = await this.GetRegisteredProducts(null, receivedElement.asset!.AnticounterfeitReceiveProductTransaction.ProductId);
+                    ownedElements.push(registeredProduct.body.data[0].asset.AnticounterfeitRegisterProductTransaction);
+                }
+
+            }
+        }
+
+        return { body: { data: ownedElements } };
+    }
+
     /** Checks the account informations (the delegate must exist and must have the specified username) */
     public async LoginAccount(username: string, addressId: string): Promise<boolean> {
         try {
